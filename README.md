@@ -1,2 +1,2 @@
 # pppnt
-network analyser in php, because why not ¯\_(ツ)_/¯
+network analyser written in php, because why not ¯\_(ツ)_/¯

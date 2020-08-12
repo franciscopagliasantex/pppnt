@@ -161,17 +161,12 @@
         // Average RTT in seconds (ms/1000 -> s):
         $avgRTT = ($avg/1000);
 
-        /**
-         * A correctly-formed ping packet is typically 56 bytes in size, 
-         * or 64 bytes when the ICMP header is considered, and 84 including 
-         * Internet Protocol version 4 header. However, any IPv4 packet 
-         * (including pings) may be as large as 65,535 Bytes. Worst case scenario for approx:
-         */
-        $icmpMax = 65535;
+        // Too Lazy to create a TCP conn. to calculate BW. Suppose a RWIN of 64K.
+        $rwin = 65535;
 
         // Throughput in Bytes. Then convert to bits by * 8 (1 byte -> 8 bits).
         // Then convert bits to Mbits. (X / 1000 (Kbits) / 1000 (Mbits)).
-        $throughput = (((($icmpMax / $avgRTT) * 8) / 1000) / 1000);
+        $throughput = (((($rwin / $avgRTT) * 8) / 1000) / 1000);
 
         // TODO: Weighted latency average for a more precise throughput approximation.
         echo "throughput approximation = " . round($throughput, 3) . " Mbps";

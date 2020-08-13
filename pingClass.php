@@ -17,32 +17,34 @@
 
         $options = getopt('c:i:h:t:d:');
 
-        // Packet Count:
+        // Packet Count Flag:
         if(isset($options['c'])){
             $this->count = (int) $options['c'];
         } else {
             $this->count = 3;
         }
 
-        // Send Interval:
+        // Send Interval Flag:
         if(isset($options['i'])){
             $this->interval = (int) $options['i'];
         } else{
             $this->interval = 1;
         }
 
-        // Wait Timeout:
+        // Timeout Flag:
         if(isset($options['t'])){
             $this->timeout = (int) $options['t'];
         } else{
             $this->timeout = 1;
         }
 
-        // Destination Host:
+        // Destination Host Flag:
         if(isset($options['h'])){
+            // IP:
             if (filter_var($options['h'], FILTER_VALIDATE_IP)) {
                 $this->hostname = $options['h'];
                 $this->ipaddress = $options['h'];
+            // HOST:
             } else {
                 $this->hostname = $options['h'];
                 $this->ipaddress = gethostbyname($this->hostname);
@@ -58,8 +60,7 @@
     }
 
     public function pingHost(){
-
-        // received Packets (init).
+        // Received Packets (init).
         $received = 0;
         $record = array();
 
@@ -116,8 +117,7 @@
     }
 
     public function report($received, $record){
-
-        // received Packets / Sent Packets.
+        // Received Packets / Sent Packets.
         $packetloss = (1 - $received/$this->count) * 100;
 
         echo PHP_EOL;
@@ -155,27 +155,7 @@
 
         echo "jitter = " . round($jitter, 3) . " ms";
 
-        echo PHP_EOL;
-
-        // Throughput:
-        // Average RTT in seconds (ms/1000 -> s):
-        $avgRTT = ($avg/1000);
-
-        /**
-         * A correctly-formed ping packet is typically 56 bytes in size, 
-         * or 64 bytes when the ICMP header is considered, and 84 including 
-         * Internet Protocol version 4 header. However, any IPv4 packet 
-         * (including pings) may be as large as 65,535 Bytes. Worst case scenario for approx:
-         */
-        $icmpMax = 65535;
-
-        // Throughput in Bytes. Then convert to bits by * 8 (1 byte -> 8 bits).
-        // Then convert bits to Mbits. (X / 1000 (Kbits) / 1000 (Mbits)).
-        $throughput = (((($icmpMax / $avgRTT) * 8) / 1000) / 1000);
-
-        // TODO: Weighted latency average for a more precise throughput approximation.
-        echo "throughput approximation = " . round($throughput, 3) . " Mbps";
-        echo PHP_EOL;     
+        echo PHP_EOL; 
     }
 }
 

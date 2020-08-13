@@ -1,93 +1,112 @@
 <?php
+    class Packet{
+        /**
+         * Creates a valid ICMP Packet.
+         * @param hex Starting sequence number.
+         * @param hex Packet identifier number.
+         */
+        public static function buildPacket($seq = 0x0000, $id= 0x2107){
+            // ICMP Header Values:
+            $type       = 0x08;
+            $code       = 0x00;
+            $checksum   = 0x0000;
+            $identifier = $id;
+            $sequence   = $seq;
+            $data       = microtime();
 
-class Packet{
+            // Pack data into Binary string:
+            $packet = pack( "CCnnnA*",
+                            $type,
+                            $code,
+                            $checksum,
+                            $identifier,
+                            $sequence,
+                            $data);
 
-    public static function buildPacket($seq = 0x0000, $id= 0x2107){
+            // Validate Packet Length:
+            $packet = self::validatePacketLength($packet);
 
-        // ICMP Header Values:
-        $type       = 0x08;
-        $code       = 0x00;
-        $checksum   = 0x0000;
-        $identifier = $id;
-        $sequence   = $seq;
-        $data       = microtime();
+            // Calculate IP Checksum for ICMP:
+            // https://tools.ietf.org/html/rfc1071#section-4.1
+            $checksum = self::calculateCheckSum($packet);
 
-        // Pack into Binary String:
-        $packet = pack( "CCnnnA*",
-                        $type,
-                        $code,
-                        $checksum,
-                        $identifier,
-                        $sequence,
-                        $data);
+            // Pack Checksum into Binary string:
+            $checksum = pack("n*", $checksum);
 
-        // Validate Packet Length:
-        $packet = self::validatePacketLength($packet);
+            // Replace empty Checksum (2 bytes) with calculated one:
+            $packet[2] = $checksum[0];
+            $packet[3] = $checksum[1];
 
-
-        // Calculate Checksum:
-        // https://tools.ietf.org/html/rfc1071#section-4.1
-        $checksum = self::calculateCheckSum($packet);
-
-        // Pack Checksum:
-        $checksum = pack("n*", $checksum);
-
-        // Replace Empty Checksum (2 bytes) with Calculated one:
-        $packet[2] = $checksum[0];
-        $packet[3] = $checksum[1];
-
-        // Return Packet:
-        return $packet;
-    }
-
-    public static function validatePacketLength($packet){
-
-        // Get packet length:
-        $packet_len = strlen($packet);
-
-        // Length should be par. If odd, append byte.
-        if($packet_len % 2){
-            $packet .= "\x00";
+            return $packet;
         }
 
-        // Return validated packet.
-        return $packet;
-    }
+        /**
+         * Checks if Packet length is even. Appends padding byte
+         * if length is odd.
+         * @param string Binary string containing an ICMP Packet.
+         */
+        public static function validatePacketLength($packet){
+            // Get packet length:
+            $packet_len = strlen($packet);
 
-    public static function calculateCheckSum($packet){
+            // Length should be even. If odd, append byte.
+            if($packet_len % 2){
+                $packet .= "\x00";
+            }
 
-        // Unpack in 16 bit long strings.
-        $bit = unpack('n*', $packet);
-
-        // Perform binary addition.
-        $sum = array_sum($bit);
-
-        // Check for overflow.
-        while($sum >> 16){
-            // Remove overflow + Sum overflow.
-            $sum = ($sum & 0xFFFF) + ($sum >> 16);
+            return $packet;
         }
 
-        // Return result complement.
-        return (~$sum & 0xFFFF);
-    }
+        /**
+         * Calculates IP Checksum for an ICMP Packet.
+         * https://tools.ietf.org/html/rfc1071#section-4.1
+         * @param string Binary string containing an ICMP Packet.
+         */
+        public static function calculateCheckSum($packet){
+            // Unpack in 16 bit long string blocks.
+            $bit = unpack('n*', $packet);
 
-    public static function getTTL($packet){
-        // Byte 9 de la cabezera IP, -1 posición del index del array.
-        return hexdec(bin2hex($packet[((9)-1)]));
-    }
+            // Perform binary addition.
+            $sum = array_sum($bit);
 
-    public static function getSeq($packet){
-        // Byte 7 y 8 de la cabezera ICMP.
-        // Salteamos 20 bytes cabecera IP.
-        // -1 posición index array.
-        return hexdec(bin2hex($packet[((20+7)-1)] . $packet[((20+8)-1)]));
-    }
-    
-    public static function getTime($time){
-        // Resta el tiempo actual con el tiempo en el que el paquete fue enviado.
-        // Se pasa de microsegundos a milisegundos, se dejan 2 decimales.
-        return round((microtime(true) - $time) * 1000, 2);
-    }
-}
+            // Check for overflow.
+            while($sum >> 16){
+                // Remove overflow + sum overflow.
+                $sum = ($sum & 0xFFFF) + ($sum >> 16);
+            }
 
+            // One's complement.
+            $checksum = (~$sum & 0xFFFF);
+
+            return $checksum;
+        }
+
+        /**
+         * Extracts TTL field from IP Header.
+         * @param string Binary string containing an IP/ICMP (0 Reply) Packet.
+         */
+        public static function getTTL($packet){
+            // IP Header Position: 9 - 1 array index.
+            return hexdec(bin2hex($packet[((9)-1)]));
+        }
+
+        /**
+         * Extracts Sequence field from IP/ICMP Header.
+         * @param string Binary string containing an IP/ICMP (0 Reply) Packet.
+         */
+        public static function getSeq($packet){
+            // Skip first 20 Bytes of IP Header.
+            // Get 7th and 8th byte of the ICMP Header - 1 array index.
+            return hexdec(bin2hex($packet[((20+7)-1)] . $packet[((20+8)-1)]));
+        }
+        
+        /**
+         * Calculares a new timestamp representing the RTT.
+         * @param timestamp Timestamp in Microseconds from when the echo was sent.
+         */
+        public static function getTime($time){
+            // Time diff. converted from micro to mili. Round with 2 Decimals.
+            return round((microtime(true) - $time) * 1000, 2);
+        }
+    }
+?>
